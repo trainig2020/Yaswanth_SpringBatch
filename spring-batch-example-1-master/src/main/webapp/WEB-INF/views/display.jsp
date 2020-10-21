@@ -5,23 +5,42 @@
 <html>
 <head>
 <meta charset="ISO-8859-1">
-<title>Manual Schedule Form</title>
+<title>Schedule Form</title>
 </head>
 <body>
-	<h1>Hello Welcome to manual schedule script running form</h1>
+	<h1>Hello Welcome to manual and auto schedule script running form</h1>
 
 
-	<form action="/home/manualmode" method="get">
+	<a href="/load">AutoScheduling</a>
+	<br>
+	<br>
 
-		<input type="datetime-local" name="selecteddate" value="2020-10-12 14:52:00" step="1"></br>
-		</br>
+	<h3>File Upload:</h3>
+	Select a file to upload:
+	<br>
+	<form action="/load/fileupload" method="post" enctype="multipart/form-data">
+	
+		<input type="file" name="fileUpload" size="50" /> <br> 
+		<input type="submit" value="Upload File" />
+		<!-- <button type="submit" class="btn btn-primary" >Upload File</button> -->
+		
+	</form>
+	
+	<br><br>
+
+	<form action="/load/manualmode" method="get">
+
+		<input type="datetime-local" name="selecteddate"
+			value="2020-10-12 14:52:00" step="1"></br> </br>
 
 		<c:forEach items="${ListOfFiles}" var="list">
-			<input type="checkbox"  name="names" value="${list}"></br></br>
-			<c:out value="${list}"></c:out></br></br>
+			<input type="checkbox" name="names" value="${list}">
+			</br>
+			<c:out value="${list}"></c:out>
+			</br>
 		</c:forEach>
-		
-         <input type="submit" value="Submit"> 
+
+		<input type="submit" value="Submit">
 
 	</form>
 </body>

@@ -2,6 +2,7 @@ package com.techprimers.springbatchexample1.config;
 
 import com.techprimers.springbatchexample1.batch.DBWriter;
 import com.techprimers.springbatchexample1.batch.Processor;
+import com.techprimers.springbatchexample1.controller.LoadController;
 import com.techprimers.springbatchexample1.model.User;
 
 import java.io.IOException;
@@ -212,18 +213,11 @@ public class SpringBatchConfig {
 				});
 			}
 		});
-		// System.out.println("reader is "+reader.toString());
-		// reader.open(new ExecutionContext());
 		return reader;
 	}
 
 	@Bean
 	public TaskExecutor taskExecutor() {
-		/*
-		 * SimpleAsyncTaskExecutor asyncTaskExecutor = new
-		 * SimpleAsyncTaskExecutor("spring_batch");
-		 * asyncTaskExecutor.setConcurrencyLimit((inputResources.length / 2 + 1));
-		 */
 		ThreadPoolTaskExecutor taskExecutor = new ThreadPoolTaskExecutor();
 		taskExecutor.setMaxPoolSize(10);
 		taskExecutor.afterPropertiesSet();
@@ -231,6 +225,21 @@ public class SpringBatchConfig {
 
 		return taskExecutor;
 	}
+	
+//	@Bean
+//	@Qualifier
+//	@StepScope
+//	public MultiResourceItemReader<User> ItemReader2() {
+//		MultiResourceItemReader<User> resourceItemReader2 = new MultiResourceItemReader<User>();
+//		LoadController lcr=new LoadController();
+//		Resource[] res=lcr.getRes();
+//		if (res.length != 0) {
+//			resourceItemReader2.setResources(res);
+//			resourceItemReader2.setDelegate(reader());
+//			System.out.println("New file is" + resourceItemReader2.getCurrentResource());
+//			return resourceItemReader2;
+//		} 
+//	}
 
 //	@Bean
 //	public ThreadPoolTaskExecutor taskExecutor() {

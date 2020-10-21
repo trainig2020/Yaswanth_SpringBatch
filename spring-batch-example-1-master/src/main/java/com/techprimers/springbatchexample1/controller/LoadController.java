@@ -6,28 +6,50 @@ import org.springframework.batch.core.repository.JobExecutionAlreadyRunningExcep
 import org.springframework.batch.core.repository.JobInstanceAlreadyCompleteException;
 import org.springframework.batch.core.repository.JobRestartException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.multipart.MultipartHttpServletRequest;
+import org.springframework.web.servlet.ModelAndView;
 import com.techprimers.springbatchexample1.config.Monitoring;
 //import com.techprimers.springbatchexample1.config.Monitoring;
 import com.techprimers.springbatchexample1.config.SpringBatchConfig;
 import javaxt.io.Directory;
 import javaxt.io.Directory.Event;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
+import java.io.Reader;
 import java.nio.file.FileSystems;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 @RestController
 @RequestMapping("/load")
@@ -40,17 +62,16 @@ public class LoadController {
 	Job job;
 
 	@GetMapping
-    public BatchStatus load() throws JobParametersInvalidException, 
-                             JobExecutionAlreadyRunningException, JobRestartException,
-                                    JobInstanceAlreadyCompleteException, IOException, InterruptedException {
+	public BatchStatus load() throws JobParametersInvalidException, JobExecutionAlreadyRunningException,
+			JobRestartException, JobInstanceAlreadyCompleteException, IOException, InterruptedException {
 		LoadController lc = new LoadController();
-        Map<String, JobParameter> maps = new HashMap<>();
-        maps.put("time", new JobParameter(System.currentTimeMillis()));
-        JobParameters parameters = new JobParameters(maps);
-        JobExecution jobExecution = jobLauncher.run(job, parameters);
-        System.out.println("JobExecution: " + jobExecution.getStatus());
-        //lc.fileWatcherService();
-        Directory folder = new Directory("F:\\csvfiles");
+		Map<String, JobParameter> maps = new HashMap<>();
+		maps.put("time", new JobParameter(System.currentTimeMillis()));
+		JobParameters parameters = new JobParameters(maps);
+		JobExecution jobExecution = jobLauncher.run(job, parameters);
+		System.out.println("JobExecution: " + jobExecution.getStatus());
+		// lc.fileWatcherService();
+		Directory folder = new Directory("F:\\csvfiles");
 		Directory folderCopy = new Directory("F:\\tempcopy");
 		try {
 			sync(folder, folderCopy);
@@ -64,7 +85,7 @@ public class LoadController {
 
 		return jobExecution.getStatus();
 	}
-	
+
 //	public void fileWatcherService() throws IOException, InterruptedException, JobParametersInvalidException, JobExecutionAlreadyRunningException, JobRestartException, JobInstanceAlreadyCompleteException {
 //        LoadController lc = new LoadController();
 //        try (WatchService service = FileSystems.getDefault().newWatchService()) {
@@ -97,7 +118,7 @@ public class LoadController {
 	private void sync(Directory source, Directory destination) throws Exception {
 
 		LoadController ld = new LoadController();
-		 List events = source.getEvents();
+		List events = source.getEvents();
 		while (true) {
 			Event event;
 			// Wait for new events to be added to the que
@@ -169,7 +190,7 @@ public class LoadController {
 						break;
 					case (Event.MODIFY):
 						file.copyTo(dest, true);
-					    break;
+						break;
 					case (Event.RENAME): {
 						javaxt.io.File orgFile = new javaxt.io.File(event.getOriginalFile());
 						dest = new javaxt.io.File(
@@ -188,4 +209,133 @@ public class LoadController {
 		}
 
 	}
+
+	@RequestMapping("/fileupload")
+	public ModelAndView csvFileUpload(HttpServletRequest request,
+			@RequestParam("fileUpload") MultipartFile[] fileUpload) throws Exception {
+		File folderCopy = new File("F:\\csvfiles");
+		Path pathCopy = folderCopy.toPath();
+		if (fileUpload != null && fileUpload.length > 0) {
+
+			for (MultipartFile multipartFile : fileUpload) {
+
+				System.out.println("Saving file: " + multipartFile.getOriginalFilename());
+				System.out.println("Content of file :" + multipartFile.toString());
+
+				try {
+					byte[] bytes = multipartFile.getBytes();
+					Path path = Paths.get(pathCopy + "\\" + multipartFile.getOriginalFilename());
+					Files.write(path, bytes);
+				} catch (IOException e) {
+
+					e.printStackTrace();
+				}
+
+			}
+		}
+		Map<String, JobParameter> maps = new HashMap<>();
+		maps.put("time5", new JobParameter(System.currentTimeMillis()));
+		JobParameters parameters = new JobParameters(maps);
+		JobExecution jobExecution = jobLauncher.run(job, parameters);
+		System.out.println("parameters are " + parameters.toString());
+		System.out.println("JobExecution: " + jobExecution.getStatus().toString());
+
+		return new ModelAndView("display");
+
+	}
+
+	@RequestMapping("/Fileslist")
+	public ModelAndView manualSchedule() {
+		File files = new File("F:\\csvfiles");
+		File[] listOfFiles = files.listFiles();
+		List<String> Names = new ArrayList<>();
+		ModelAndView model = new ModelAndView("display");
+		for (File file : listOfFiles) {
+
+			Names.add(file.getName());
+		}
+		model.addObject("ListOfFiles", Names);
+
+		return model;
+
+	}
+
+	@RequestMapping("/manualmode")
+	public ModelAndView manualmodeSch(HttpServletRequest request, HttpServletResponse response) {
+		String dateTimeLocal = request.getParameter("selecteddate");
+
+		String[] fileNames = request.getParameterValues("names");
+
+		System.out.println(dateTimeLocal + " " + fileNames[0]);
+		File files = new File("F:\\csvfiles");
+		File[] listOfFiles = files.listFiles();
+		ClassLoader Cl = this.getClass().getClassLoader();
+		ResourcePatternResolver resolver = new PathMatchingResourcePatternResolver(Cl);
+		ModelAndView sp = new ModelAndView("home");
+		Resource[] res = new Resource[fileNames.length];
+
+		int i = 0;
+		try {
+			Resource[] resources = resolver.getResources("file:F:\\csvfiles");
+
+			for (Resource resource : resources) {
+
+				for (String resource2 : fileNames) {
+
+					if (resource.getFilename().equalsIgnoreCase(resource2)) {
+						res[i] = resource;
+						i++;
+					}
+				}
+			}
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		for (Resource resource : res) {
+			System.out.println("resources are selected " + resource.getFilename());
+		}
+
+		TimerTask task = new TimerTask() {
+
+			public void run() {
+
+				Map<String, JobParameter> maps = new HashMap<>();
+				maps.put("time6", new JobParameter(System.currentTimeMillis()));
+				JobParameters jobParameters = new JobParameters();
+				try {
+
+					JobExecution execution = jobLauncher.run(job, jobParameters);
+
+				} catch (JobExecutionAlreadyRunningException | JobRestartException | JobInstanceAlreadyCompleteException
+						| JobParametersInvalidException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+
+			}
+		};
+
+		try {
+			Date scheduleddate = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").parse(dateTimeLocal);
+			System.out.println(scheduleddate);
+			Timer timer = new Timer();
+			timer.schedule(task, scheduleddate);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		return new ModelAndView("redirect:/load/Fileslist");
+
+	}
+	
+	
+
+	public Resource[] getRes() {
+		
+		return null;
+	}
+
 }
