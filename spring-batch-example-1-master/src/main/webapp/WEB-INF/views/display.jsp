@@ -28,7 +28,7 @@
 	
 	<br><br>
 
-	<form action="/load/manualmode" method="get">
+	<form action="/load/manualmode" method="post">
 
 		<input type="datetime-local" name="selecteddate"
 			value="2020-10-12 14:52:00" step="1"></br> </br>

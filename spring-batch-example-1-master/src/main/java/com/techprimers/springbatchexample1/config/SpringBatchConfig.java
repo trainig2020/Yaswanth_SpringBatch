@@ -1,6 +1,7 @@
 package com.techprimers.springbatchexample1.config;
 
 import com.techprimers.springbatchexample1.batch.DBWriter;
+import com.techprimers.springbatchexample1.batch.DBWriter1;
 import com.techprimers.springbatchexample1.batch.Processor;
 import com.techprimers.springbatchexample1.controller.LoadController;
 import com.techprimers.springbatchexample1.model.User;
@@ -129,6 +130,29 @@ public class SpringBatchConfig {
 //		return reader;
 //	}
 
+	static Resource[] resources;
+
+	public SpringBatchConfig(Resource[] resources) {
+		super();
+		this.resources = resources;
+		System.out.println("res in constructor " + resources[0].getFilename());
+		getResources();
+	}
+
+	public Resource[] getResources() {
+
+		System.out.println("res in getter " + resources[0].getFilename());
+		return resources;
+	}
+
+	public void setResources(Resource[] resources) {
+		this.resources = resources;
+	}
+
+	public SpringBatchConfig() {
+		super();
+	}
+
 	@Autowired
 	private JobBuilderFactory jobBuilderFactory;
 
@@ -139,16 +163,25 @@ public class SpringBatchConfig {
 	private DBWriter dbwriter;
 
 	@Autowired
+	private DBWriter1 dbwriter1;
+
+	@Autowired
 	private Processor process;
 
+	// first job Auto
 	@Bean
-
+	// @Primary
 	public Job job() {
 		return jobBuilderFactory.get("job").incrementer(new RunIdIncrementer()).start(step()).build();
 	}
 
-	@Bean
+	@Bean(name = "job1")
+	public Job job1() {
+		return jobBuilderFactory.get("job1").incrementer(new RunIdIncrementer()).start(step1()).build();
 
+	}
+
+	@Bean
 	public Step step() {
 		return stepBuilderFactory.get("step").<User, User>chunk((3))
 
@@ -157,6 +190,17 @@ public class SpringBatchConfig {
 				.processor(process)
 
 				.writer(dbwriter).taskExecutor(taskExecutor()).build();
+	}
+
+	@Bean
+	public Step step1() {
+		return stepBuilderFactory.get("step1").<User, User>chunk((3))
+
+				.reader(itemReader1())
+
+//				.processor(process)
+
+				.writer(dbwriter1).build();
 	}
 
 	@Bean
@@ -188,7 +232,7 @@ public class SpringBatchConfig {
 
 	@Bean
 	@Primary
-	// @StepScope
+	@StepScope
 	public FlatFileItemReader<User> reader() {
 		// Create reader instance
 		FlatFileItemReader<User> reader = new FlatFileItemReader<User>();
@@ -225,21 +269,72 @@ public class SpringBatchConfig {
 
 		return taskExecutor;
 	}
-	
-//	@Bean
-//	@Qualifier
-//	@StepScope
-//	public MultiResourceItemReader<User> ItemReader2() {
-//		MultiResourceItemReader<User> resourceItemReader2 = new MultiResourceItemReader<User>();
-//		LoadController lcr=new LoadController();
-//		Resource[] res=lcr.getRes();
-//		if (res.length != 0) {
-//			resourceItemReader2.setResources(res);
-//			resourceItemReader2.setDelegate(reader());
-//			System.out.println("New file is" + resourceItemReader2.getCurrentResource());
-//			return resourceItemReader2;
-//		} 
-//	}
+
+	// second job : Manual
+
+	@Bean
+	@StepScope
+	@Qualifier
+	public MultiResourceItemReader<User> itemReader1() {
+
+		// if(LoadController.getRes() !=null) {
+		// Resource[] ref = LoadController.getRes().;
+		MultiResourceItemReader<User> resourceItemReader3 = new MultiResourceItemReader<User>();
+		/*
+		 * LoadController lcv = new LoadController(); Resource[] rdf = lcv.getRes();
+		 */
+		SpringBatchConfig spd = new SpringBatchConfig();
+		resources = spd.getResources();
+		for (Resource resource : resources) {
+			System.out.println("resource name " + resource.getFilename());
+		}
+		System.out.println("executes multi item reader");
+		resourceItemReader3.setResources(resources);
+		resourceItemReader3.setDelegate(reader1());
+
+		return resourceItemReader3;
+
+	}
+
+	@Bean
+	@Qualifier
+	@StepScope
+	public FlatFileItemReader<User> reader1() {
+		// Create reader instance
+		FlatFileItemReader<User> reader = new FlatFileItemReader<User>();
+		// Set number of lines to skips. Use it if file has header rows.
+		System.out.println("file names " + reader.toString());
+		reader.setLinesToSkip(1);
+		System.out.println(reader.toString());
+		// Configure how each line will be parsed and mapped to different values
+		reader.setLineMapper(new DefaultLineMapper<User>() {
+			{
+				// 3 columns in each row
+				setLineTokenizer(new DelimitedLineTokenizer() {
+					{
+						setNames(new String[] { "id", "name", "dept", "salary" });
+					}
+				});
+				// Set values in User class
+				setFieldSetMapper(new BeanWrapperFieldSetMapper<User>() {
+					{
+						setTargetType(User.class);
+					}
+				});
+			}
+		});
+		return reader;
+	}
+
+	@Bean
+	public TaskExecutor taskExecutor1() {
+		ThreadPoolTaskExecutor taskExecutor1 = new ThreadPoolTaskExecutor();
+		taskExecutor1.setMaxPoolSize(10);
+		taskExecutor1.afterPropertiesSet();
+		taskExecutor1.getActiveCount();
+
+		return taskExecutor1;
+	}
 
 //	@Bean
 //	public ThreadPoolTaskExecutor taskExecutor() {

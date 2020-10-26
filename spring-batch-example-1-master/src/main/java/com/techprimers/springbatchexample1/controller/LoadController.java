@@ -6,6 +6,7 @@ import org.springframework.batch.core.repository.JobExecutionAlreadyRunningExcep
 import org.springframework.batch.core.repository.JobInstanceAlreadyCompleteException;
 import org.springframework.batch.core.repository.JobRestartException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.io.support.ResourcePatternResolver;
@@ -17,6 +18,8 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.multipart.MultipartHttpServletRequest;
 import org.springframework.web.servlet.ModelAndView;
+
+import com.sun.el.parser.ParseException;
 import com.techprimers.springbatchexample1.config.Monitoring;
 //import com.techprimers.springbatchexample1.config.Monitoring;
 import com.techprimers.springbatchexample1.config.SpringBatchConfig;
@@ -45,6 +48,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -60,6 +64,12 @@ public class LoadController {
 
 	@Autowired
 	Job job;
+
+	@Autowired
+	@Qualifier("job1")
+	Job job1;
+
+	static Resource[] res;
 
 	@GetMapping
 	public BatchStatus load() throws JobParametersInvalidException, JobExecutionAlreadyRunningException,
@@ -262,21 +272,22 @@ public class LoadController {
 
 	@RequestMapping("/manualmode")
 	public ModelAndView manualmodeSch(HttpServletRequest request, HttpServletResponse response) {
+
+		Random rannum = new Random();
+
 		String dateTimeLocal = request.getParameter("selecteddate");
 
 		String[] fileNames = request.getParameterValues("names");
 
-		System.out.println(dateTimeLocal + " " + fileNames[0]);
-		File files = new File("F:\\csvfiles");
-		File[] listOfFiles = files.listFiles();
-		ClassLoader Cl = this.getClass().getClassLoader();
-		ResourcePatternResolver resolver = new PathMatchingResourcePatternResolver(Cl);
-		ModelAndView sp = new ModelAndView("home");
-		Resource[] res = new Resource[fileNames.length];
+		ClassLoader cl = this.getClass().getClassLoader();
+		ResourcePatternResolver resolver = new PathMatchingResourcePatternResolver(cl);
+		// Resource[] res = null;
+		ModelAndView mdv = new ModelAndView("display");
+		res = new Resource[fileNames.length];
 
 		int i = 0;
 		try {
-			Resource[] resources = resolver.getResources("file:F:\\csvfiles");
+			Resource[] resources = resolver.getResources("file:f:/csvfiles/user*.csv");
 
 			for (Resource resource : resources) {
 
@@ -290,26 +301,40 @@ public class LoadController {
 			}
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
+
 			e.printStackTrace();
+
 		}
 
 		for (Resource resource : res) {
-			System.out.println("resources are selected " + resource.getFilename());
-		}
+			System.out.println("resorces selected " + resource.getFilename());
 
+			System.out.println("Saving file: " + resource.getFilename());
+
+		}
 		TimerTask task = new TimerTask() {
 
+			@Override
 			public void run() {
 
 				Map<String, JobParameter> maps = new HashMap<>();
-				maps.put("time6", new JobParameter(System.currentTimeMillis()));
-				JobParameters jobParameters = new JobParameters();
+				maps.put("time9", new JobParameter(System.currentTimeMillis()));
+				// maps.put("reso", res);
+				SpringBatchConfig mtb = new SpringBatchConfig(res);
+				System.out.println("exceutes");
+				JobParameters parameters = new JobParameters(maps);
 				try {
-
-					JobExecution execution = jobLauncher.run(job, jobParameters);
-
-				} catch (JobExecutionAlreadyRunningException | JobRestartException | JobInstanceAlreadyCompleteException
-						| JobParametersInvalidException e) {
+					JobExecution jobExecution = jobLauncher.run(job1, parameters);
+				} catch (JobExecutionAlreadyRunningException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (JobRestartException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (JobInstanceAlreadyCompleteException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (JobParametersInvalidException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
@@ -318,24 +343,17 @@ public class LoadController {
 		};
 
 		try {
-			Date scheduleddate = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").parse(dateTimeLocal);
-			System.out.println(scheduleddate);
+			Date futureDate = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").parse(dateTimeLocal);
+			System.out.println(futureDate);
 			Timer timer = new Timer();
-			timer.schedule(task, scheduleddate);
+			timer.schedule(task, futureDate);
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 
-		return new ModelAndView("redirect:/load/Fileslist");
+		return mdv;
 
-	}
-	
-	
-
-	public Resource[] getRes() {
-		
-		return null;
 	}
 
 }
